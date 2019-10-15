@@ -1,8 +1,10 @@
 #https://developer.ibm.com/articles/image-recognition-challenge-with-tensorflow-and-keras-pt1/
+#turn to black and white first 
 
 import tensorflow as tf
 import skimage.io as io
 import matplotlib.pyplot as plt
+from skimage.color import rgb2gray
 from skimage.transform import rescale
 import sklearn.model_selection as sk
 import numpy as np
@@ -18,7 +20,7 @@ plastic_path = '/Users/henryberger/Desktop/Summer_Project/dataset-resized/plasti
 trash_path = '/Users/henryberger/Desktop/Summer_Project/dataset-resized/trash/'
 
 
-
+print(tf.VERSION)
 
 def load_paths(path1, path2, path3, path4, path5, path6):
     paths = []
@@ -44,30 +46,33 @@ def load_paths(path1, path2, path3, path4, path5, path6):
     print('Loaded Paths\n')
     return paths
 
+
+#make array, not string
 def load_images(paths):
     images = []
     labels = []
     for i in (paths):
         temp_image = io.imread(i)
         image = rescale(temp_image, 0.5, anti_aliasing=False)
+        gray_image = rgb2gray(image)
         if(i[58:63] == 'cardb'):
-            images.append(image)
-            labels.append('100000')
+            images.append(gray_image)
+            labels.append([1,0,0,0,0,0])
         elif(i[58:63] == 'glass'):
-            images.append(image)
-            labels.append('010000')
+            images.append(gray_image)
+            labels.append([0,1,0,0,0,0])
         elif(i[58:63] == 'metal'):
-            images.append(image)
-            labels.append('001000')
+            images.append(gray_image)
+            labels.append([0,0,1,0,0,0])
         elif(i[58:63] == 'paper'):
-            images.append(image)
-            labels.append('000100')
+            images.append(gray_image)
+            labels.append([0,0,0,1,0,0])
         elif(i[58:63] == 'plast'):
-            images.append(image)
-            labels.append('000010')
+            images.append(gray_image)
+            labels.append([0,0,0,0,1,0])
         elif(i[58:63] == 'trash'):
-            images.append(image)
-            labels.append('000001')
+            images.append(gray_image)
+            labels.append([0,0,0,0,0,1])
         
     print('Loaded Images\n')
     return (np.asarray(images), np.asarray(labels))
@@ -100,7 +105,7 @@ def init_bias(shape):
     init_bias_vals = tf.constant(0.1, shape = shape)
     return tf.Variable(init_bias_vals)
     
-#Conv3d
+#Conv2d
 
 def conv2d(x, W):
      # x --> [batch,H,W,Channels]
@@ -129,22 +134,27 @@ def normal_full_layer(input_layer, size):
     
 #Placeholders
     
-x = tf.placeholder(tf.float32, shape = [None, 192, 256, 3], name = 'x')
-y_true = tf.placeholder(tf.float32,shape=[None,1], name = 'y_true')
+x = tf.placeholder(tf.float32, shape = [None, 192,256], name = 'x')
+y_true = tf.placeholder(tf.float32,shape=[None,1,6], name = 'y_true')
 
 # layers
 
 x_image = tf.reshape(x,[-1, 256, 192, 3])
 
-convo_1 = convolutional_layer(x_image, shape = [5,5,3,32])
+convo_1 = convolutional_layer(x_image, shape = [5,5,1,36])
 convo_1_pooling = max_pool_2by2(convo_1)
 
-convo_2 = convolutional_layer(convo_1_pooling, shape = [5,5,32,64])
+print(convo_1.shape)
+
+convo_2 = convolutional_layer(convo_1_pooling, shape = [5,5,36,64])
 convo_2_pooling = max_pool_2by2(convo_2)
 
-convo_2_flat = tf.reshape(convo_2_pooling, [-1, 49*64])
+print(convo_2.shape)
+
+convo_2_flat = tf.reshape(convo_2_pooling, [-1, 192*256*64])
 full_layer_one = tf.nn.relu(normal_full_layer(convo_2_flat, 1024))
 
+print(convo_2_flat.shape)
 
 # DROPOUT
 hold_prob = tf.placeholder(tf.float32)
